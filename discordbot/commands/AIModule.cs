@@ -28,7 +28,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
         try
         {
             var settings = await _db.GetOrCreateUserSettings((long)Context.User.Id);
-            settings.SystemPrompt = $"{input}\n\nYour answer should be a maximum of 1999 characters!";
+            settings.SystemPrompt = $"{input}\n\nYour answer should be a maximum of 1800 characters!";
             await _db.UpdateUserSettings(settings);
             await ReplyAsync("Done!");
         }
@@ -130,11 +130,28 @@ public class AIModule : ModuleBase<SocketCommandContext>
 
             var aiResponse = obj?.Response ?? "No response";
 
-            if (aiResponse.Length > 1999)
+            if (aiResponse.Length > 1800)
             {
                 aiResponse = aiResponse.Substring(0, 1999);
             }
-            await ReplyAsync(aiResponse);
+            
+            var outputTps = 0.0;
+            var inputTps = 0.0;
+
+            if (obj != null)
+            {
+                if (obj.EvalDuration > 0)
+                {
+                    outputTps = obj.EvalCount / (obj.EvalDuration / 1_000_000_000.0);
+                }
+
+                if (obj.PromptEvalDuration > 0)
+                {
+                    inputTps = obj.PromptEvalCount / (obj.PromptEvalDuration / 1_000_000_000.0);
+                }
+            }
+            
+            await ReplyAsync($"{aiResponse}\n`In: {obj?.PromptEvalCount ?? 0} {inputTps:f1}T/S | Out: {obj?.EvalCount ?? 0} {outputTps:f1}T/S`");
         }
         catch (Exception e)
         {
@@ -213,8 +230,24 @@ public class AIModule : ModuleBase<SocketCommandContext>
             {
                 history.RemoveAt(0);
             }
-            
-            await ReplyAsync(aiResponse);
+
+            var outputTps = 0.0;
+            var inputTps = 0.0;
+
+            if (obj != null)
+            {
+                if (obj.EvalDuration > 0)
+                {
+                    outputTps = obj.EvalCount / (obj.EvalDuration / 1_000_000_000.0);
+                }
+
+                if (obj.PromptEvalDuration > 0)
+                {
+                    inputTps = obj.PromptEvalCount / (obj.PromptEvalDuration / 1_000_000_000.0);
+                }
+            }
+
+            await ReplyAsync($"{aiResponse}\n`In: {obj?.PromptEvalCount ?? 0} {inputTps:f1}T/S | Out: {obj?.EvalCount ?? 0} {outputTps:f1}T/S`");
         }
         catch (Exception e)
         {

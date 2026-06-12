@@ -8,5 +8,5 @@ public class UserSettings
     public long UserId { get; set; }
 
     public string Model { get; set; } = "gemma4:31b-cloud";
-    public string SystemPrompt { get; set; } = "You are helpful assistant\n\nYour answer should be a maximum of 1999 characters!";
+    public string SystemPrompt { get; set; } = "You are helpful assistant\n\nYour answer should be a maximum of 1800 characters!";
 }

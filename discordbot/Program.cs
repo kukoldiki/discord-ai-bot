@@ -42,7 +42,7 @@ class Program
         var services = new ServiceCollection()
             .AddSingleton(new CommandConfig()
             {
-                AvailableModels = ["gemma3", "mistral:latest", "gemma4:31b-cloud", "gpt-oss:120b-cloud", "qwen2.5-coder:7b"]
+                AvailableModels = ["gemma3", "mistral:latest", "gemma4:31b-cloud", "gpt-oss:20b-cloud", "gpt-oss:120b-cloud", "qwen2.5-coder:7b", "qwen3:8b"]
             })
             .AddSingleton(_commands)
             .AddSingleton(
