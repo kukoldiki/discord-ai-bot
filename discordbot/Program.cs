@@ -4,6 +4,8 @@ using Discord.WebSocket;
 using discordbot.models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Victoria;
 
 namespace discordbot;
 // $"Host=${config["db:host"] ?? "localhost"};Port={config["db:port"] ?? "5432"};Database={config["db:db"] ?? "botdb"};Username={config["db:user"] ?? "bot"};Password={config["password"] ?? "pass"}"
@@ -23,9 +25,7 @@ class Program
         var socketConfig = new DiscordSocketConfig
         {
             GatewayIntents =
-                GatewayIntents.Guilds |
-                GatewayIntents.GuildMessages |
-                GatewayIntents.MessageContent
+                GatewayIntents.All
         };
         
         _client = new DiscordSocketClient(socketConfig);
@@ -36,6 +36,20 @@ class Program
         await _client.StartAsync();
         
         _commands = new CommandService();
+        
+        var lavaConfig = new Configuration
+        {
+            Hostname = "127.0.0.1",
+            Port = 2333,
+            Authorization = "youshallnotpass",
+            SelfDeaf = true
+        };
+
+        var lavaNode = new LavaNode(
+            _client,
+            lavaConfig,
+            NullLogger<LavaNode>.Instance
+        );
         
         var services = new ServiceCollection()
             .AddSingleton(new CommandConfig()
@@ -53,6 +67,7 @@ class Program
                 )
                 )
             .AddSingleton<ChatHistoryService>()
+            .AddSingleton(lavaNode)
             .AddSingleton<HttpClient>(_ =>
                 {
                     return new HttpClient
@@ -65,6 +80,8 @@ class Program
         _commandHandler = new CommandHandler(_client, _commands, config["prefix"] ?? "!", services);
         
         await _commandHandler.InstallCommandsAsync();
+        
+        await lavaNode.ConnectAsync();
         
         await Task.Delay(-1);
     }

@@ -34,6 +34,11 @@ public class Log
         Write("ERROR", message, member, file, ConsoleColor.Red);
     }
 
+    public static void Error(Exception ex)
+    {
+        Error(ex.ToString());
+    }
+
     private static void Write(string level, string message, string member, string file, ConsoleColor color)
     {
         var className = Path.GetFileNameWithoutExtension(file);

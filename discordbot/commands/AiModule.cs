@@ -11,6 +11,8 @@ public class AiModule : ModuleBase<SocketCommandContext>
     private readonly CommandConfig _config;
     private readonly ChatHistoryService _history;
     
+    private static readonly int maxMessageLength = 1900;
+    
     public AiModule(HttpClient ollamaClient, Db db, CommandConfig config, ChatHistoryService historyService)
     {
         _ollamaClient = ollamaClient;
@@ -27,7 +29,7 @@ public class AiModule : ModuleBase<SocketCommandContext>
         try
         {
             var settings = await _db.GetOrCreateUserSettings((long)Context.User.Id);
-            settings.SystemPrompt = $"{input}\n\nYour answer should be a maximum of 1800 characters!";
+            settings.SystemPrompt = $"{input}\n\nYour answer should be a maximum of {maxMessageLength} characters!";
             await _db.UpdateUserSettings(settings);
             await ReplyAsync("Done!");
         }
@@ -129,9 +131,9 @@ public class AiModule : ModuleBase<SocketCommandContext>
 
             var aiResponse = obj?.Response ?? "No response";
 
-            if (aiResponse.Length > 1800)
+            if (aiResponse.Length > maxMessageLength)
             {
-                aiResponse = aiResponse.Substring(0, 1800);
+                aiResponse = aiResponse.Substring(0, maxMessageLength);
             }
             
             var outputTps = 0.0;
@@ -209,9 +211,9 @@ public class AiModule : ModuleBase<SocketCommandContext>
 
             var aiResponse = obj?.Message.Content ?? "No response";
 
-            if (aiResponse.Length > 1999)
+            if (aiResponse.Length > maxMessageLength)
             {
-                aiResponse = aiResponse.Substring(0, 1800);
+                aiResponse = aiResponse.Substring(0, maxMessageLength);
             }
             
             history.Add(new ChatMessage
