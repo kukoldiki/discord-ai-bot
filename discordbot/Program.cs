@@ -44,6 +44,7 @@ class Program
             {
                 AvailableModels = ["gemma3", "mistral:latest", "gemma4:31b-cloud", "gpt-oss:120b-cloud", "qwen2.5-coder:7b"]
             })
+            .AddSingleton(_commands)
             .AddSingleton(
                 new Db(
                     $"Host={config["db:host"] ?? "localhost"};" +

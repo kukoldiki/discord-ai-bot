@@ -22,6 +22,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("prompt")]
+    [Summary("Set system prompt")]
     public async Task prompt([Remainder] string input)
     {
         try
@@ -38,6 +39,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("settings")]
+    [Summary("Show user settings")]
     public async Task settings()
     {
         try
@@ -53,6 +55,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("models")]
+    [Summary("Show all available models")]
     public async Task models()
     {
         try
@@ -66,17 +69,18 @@ public class AIModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("model")]
-    public async Task model([Remainder] string input)
+    [Summary("Set model")]
+    public async Task model([Remainder] string model)
     {
         try
         {
-            if (!_config.AvailableModels.Contains(input))
+            if (!_config.AvailableModels.Contains(model))
             {
                 await ReplyAsync("Model not found! Try run models command");
                 return;
             }
             var settings = await _db.GetOrCreateUserSettings((long)Context.User.Id);
-            settings.Model = input;
+            settings.Model = model;
             await _db.UpdateUserSettings(settings);
             await ReplyAsync("Done!");
         }
@@ -87,6 +91,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
     }
     
     [Command("clear")]
+    [Summary("Clear history")]
     public async Task clearHistory()
     {
         try
@@ -99,11 +104,48 @@ public class AIModule : ModuleBase<SocketCommandContext>
             Log.Error(e.Message);
         }
     }
-    
+
+    [Command("btw")]
+    [Summary("Ask AI without saving to history")]
+    public async Task btw([Remainder] string prompt)
+    {
+        try
+        {
+            var settings = await _db.GetOrCreateUserSettings((long)Context.User.Id);
+            await Context.Channel.TriggerTypingAsync();
+            var response = await _ollamaClient.PostAsJsonAsync("/api/generate", new
+            {
+                model = settings.Model,
+                stream = false,
+                prompt = prompt
+            });
+            
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                await ReplyAsync("Error, try again later or change model");
+                Log.Error($"Failed to ask model!\n${await response.Content.ReadAsStringAsync()}");
+                return;
+            }
+            var obj = await response.Content.ReadFromJsonAsync<GenerateApiResponse>();
+
+            var aiResponse = obj?.Response ?? "No response";
+
+            if (aiResponse.Length > 1999)
+            {
+                aiResponse = aiResponse.Substring(0, 1999);
+            }
+            await ReplyAsync(aiResponse);
+        }
+        catch (Exception e)
+        {
+            await ReplyAsync("Error, try again later or change model");
+            Log.Error(e.Message);
+        }
+    }
 
     [Command("ask")]
     [Summary("Ask smart AI.")]
-    public async Task ask([Remainder] string input)
+    public async Task ask([Remainder] string prompt)
     {
         try
         {
@@ -128,7 +170,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
             messages.Add(new
             {
                 role = "user",
-                content = input
+                content = prompt
             });
             
             var data = new
@@ -159,7 +201,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
             history.Add(new ChatMessage
             {
                 Role = "user",
-                Content = input
+                Content = prompt
             });
             history.Add(new ChatMessage
             {
