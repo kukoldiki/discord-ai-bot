@@ -10,9 +10,9 @@ public class CommandHandler
     private readonly DiscordSocketClient _client;
     private readonly CommandService _commands;
     private readonly String _prefix;
-    private readonly ServiceProvider _services;
+    private readonly IServiceProvider _services;
     
-    public CommandHandler(DiscordSocketClient client, CommandService commands, String prefix, ServiceProvider services)
+    public CommandHandler(DiscordSocketClient client, CommandService commands, String prefix, IServiceProvider services)
     {
         _commands = commands;
         _client = client;

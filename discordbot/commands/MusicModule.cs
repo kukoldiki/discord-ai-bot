@@ -3,6 +3,7 @@ using Discord;
 using Discord.Audio;
 using Discord.Commands;
 using Victoria;
+using Victoria.Rest.Search;
 
 namespace discordbot.commands;
 
@@ -10,104 +11,138 @@ public class MusicModule : ModuleBase<SocketCommandContext>
 {
     private static IAudioClient _audioClient;
     private readonly LavaNode _lavaNode;
+    private readonly AudioService _audioService;
     
-    public MusicModule(LavaNode lavaNode)
+    public MusicModule(LavaNode lavaNode, AudioService audioService)
     {
         _lavaNode = lavaNode;
+        _audioService = audioService;
+        
     }
     
-    [Command("join", RunMode = RunMode.Async)]
-    public async Task Join(IVoiceChannel channel = null)
-    {
+    [Command("join")]
+    public async Task JoinAsync() {
+        var voiceState = Context.User as IVoiceState;
+        if (voiceState?.VoiceChannel == null) {
+            await ReplyAsync("You must be connected to a voice channel!");
+            return;
+        }
+        
+        try {
+            await _lavaNode.JoinAsync(voiceState.VoiceChannel);
+            await ReplyAsync($"Joined {voiceState.VoiceChannel.Name}!");
+            
+            _audioService.TextChannels.TryAdd(Context.Guild.Id, Context.Channel.Id);
+        }
+        catch (Exception exception) {
+            await ReplyAsync(exception.ToString());
+        }
+    }
+
+    [Command("play")]
+    public async Task PlayAsync([Remainder] string searchQuery) {
+        if (string.IsNullOrWhiteSpace(searchQuery)) {
+            await ReplyAsync("Please provide search terms.");
+            return;
+        }
+        
+        var player = await _lavaNode.TryGetPlayerAsync(Context.Guild.Id);
+        if (player == null) {
+            var voiceState = Context.User as IVoiceState;
+            if (voiceState?.VoiceChannel == null) {
+                await ReplyAsync("You must be connected to a voice channel!");
+                return;
+            }
+            
+            try {
+                player = await _lavaNode.JoinAsync(voiceState.VoiceChannel);
+                await ReplyAsync($"Joined {voiceState.VoiceChannel.Name}!");
+                _audioService.TextChannels.TryAdd(Context.Guild.Id, Context.Channel.Id);
+            }
+            catch (Exception exception) {
+                await ReplyAsync(exception.Message);
+            }
+        }
+        
+        var searchResponse = await _lavaNode.LoadTrackAsync(searchQuery);
+        if (searchResponse.Type is SearchType.Empty or SearchType.Error) {
+            await ReplyAsync($"I wasn't able to find anything for `{searchQuery}`.");
+            return;
+        }
+        
+        var track = searchResponse.Tracks.FirstOrDefault();
+        if (player.Track == null) {
+            await player.PlayAsync(_lavaNode, track);
+            // await ReplyAsync($"Now playing: {track.Title}");
+            return;
+        }
+        
+        player.GetQueue().Enqueue(track);
+        await ReplyAsync($"Added {track.Title} to queue.");
+    }
+    
+    [Command("leave")]
+    public async Task LeaveAsync() {
+        var voiceChannel = (Context.User as IVoiceState).VoiceChannel;
+        if (voiceChannel == null) {
+            await ReplyAsync("Not sure which voice channel to disconnect from.");
+            return;
+        }
+        
+        try {
+            await _lavaNode.LeaveAsync(voiceChannel);
+            await ReplyAsync($"I've left {voiceChannel.Name}!");
+        }
+        catch (Exception exception) {
+            await ReplyAsync(exception.Message);
+        }
+    }
+    
+    [Command("stop")]
+    public async Task StopAsync() {
+        var player = await _lavaNode.TryGetPlayerAsync(Context.Guild.Id);
+        if(player == null)
+            return;
+        if (!player.State.IsConnected || player.Track == null) {
+            await ReplyAsync("Woah, can't stop won't stop.");
+            return;
+        }
+        
+        try {
+            await player.StopAsync(_lavaNode, player.Track);
+            await ReplyAsync("No longer playing anything.");
+        }
+        catch (Exception exception) {
+            await ReplyAsync(exception.Message);
+        }
+    }
+    
+    [Command("skip")]
+    public async Task SkipAsync() {
         try
         {
-            channel = channel ?? (Context.User as IGuildUser)?.VoiceChannel;
-            if (channel == null)
+            var player = await _lavaNode.TryGetPlayerAsync(Context.Guild.Id);
+            if(player == null)
+                return;
+            if (!player.State.IsConnected)
             {
-                await Context.Channel.SendMessageAsync(
-                    "User must be in a voice channel, or a voice channel must be passed as an argument.");
+                await ReplyAsync("Woaaah there, I can't skip when nothing is playing.");
                 return;
             }
 
-            var audioClient = await channel.ConnectAsync();
-            _audioClient = audioClient;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex);
-        }
-    }
-    
-    private Process CreateStream(string path)
-    {
-        return Process.Start(new ProcessStartInfo
-        {
-            FileName = "ffmpeg",
-            Arguments = $"-hide_banner -loglevel panic -i \"{path}\" -ac 2 -f s16le -ar 48000 pipe:1",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-        });
-    }
-    
-    private string GetAudioUrl(string url)
-    {
-        var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "yt-dlp.exe",
-                Arguments = $"-f bestaudio -g \"{url}\"",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
+            var queue = player.GetQueue();
+            Log.Info("Queue: " + queue.Count);
+            if (!queue.TryDequeue(out var next))
+                return;
+            
+            Log.Info("Next " + next.Title);
 
-        process.Start();
-        string output = process.StandardOutput.ReadToEnd();
-        process.WaitForExit();
-
-        return output.Trim();
-    }
-    
-    private async Task PlayAsync(IAudioClient client, string filePath)
-    {
-        using var ffmpeg = CreateStream(filePath);
-        using var output = ffmpeg.StandardOutput.BaseStream;
-        using var discord = client.CreatePCMStream(AudioApplication.Mixed);
-
-        try
-        {
-            await output.CopyToAsync(discord);
+            //await player.StopAsync(_lavaNode, player.Track);
+            await player.PlayAsync(_lavaNode, next, noReplace: false);
         }
-        finally
-        {
-            await discord.FlushAsync();
+        catch (Exception exception) {
+            await ReplyAsync(exception.Message);
+            Log.Error(exception);
         }
-    }
-    
-    /*[Command("play", RunMode = RunMode.Async)]
-    public async Task Play(string path)
-    {
-        if (_audioClient == null)
-        {
-            await ReplyAsync("Join voice first");
-            return;
-        }
-
-        await PlayAsync(_audioClient, path);
-    }*/
-    [Command("play", RunMode = RunMode.Async)]
-    public async Task Play(string url)
-    {
-        if (_audioClient == null)
-        {
-            await ReplyAsync("Join voice first");
-            return;
-        }
-
-        var streamUrl = GetAudioUrl(url);
-
-        await PlayAsync(_audioClient, streamUrl);
     }
 }

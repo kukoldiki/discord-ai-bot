@@ -8,55 +8,66 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Victoria;
 
 namespace discordbot;
-// $"Host=${config["db:host"] ?? "localhost"};Port={config["db:port"] ?? "5432"};Database={config["db:db"] ?? "botdb"};Username={config["db:user"] ?? "bot"};Password={config["password"] ?? "pass"}"
+
 class Program
 {
     private static DiscordSocketClient _client;
     private static CommandHandler _commandHandler;
     private static CommandService _commands;
-    
+
+    private static LavaNode _lavaNode;
+    private static Configuration _lavaConfig;
+    private static ServiceProvider _services;
+
     public static async Task Main(string[] args)
     {
         Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
+
         var config = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json")
             .Build();
-        
+
         var socketConfig = new DiscordSocketConfig
         {
-            GatewayIntents =
-                GatewayIntents.All
+            GatewayIntents = GatewayIntents.All
         };
-        
+
         _client = new DiscordSocketClient(socketConfig);
 
         _client.Log += LogMessage;
         
-        await _client.LoginAsync(TokenType.Bot, config["token"]);
-        await _client.StartAsync();
-        
-        _commands = new CommandService();
-        
-        var lavaConfig = new Configuration
+        _lavaConfig = new Configuration
         {
             Hostname = "127.0.0.1",
-            Port = 2333,
+            Port = 8080,
             Authorization = "youshallnotpass",
             SelfDeaf = true
         };
 
-        var lavaNode = new LavaNode(
+        _lavaNode = new LavaNode(
             _client,
-            lavaConfig,
+            _lavaConfig,
             NullLogger<LavaNode>.Instance
         );
         
-        var services = new ServiceCollection()
+        _commands = new CommandService();
+
+        _services = new ServiceCollection()
+            .AddSingleton(_client)
+            .AddSingleton(_commands)
             .AddSingleton(new CommandConfig()
             {
-                AvailableModels = ["gemma3", "mistral:latest", "gemma4:31b-cloud", "gpt-oss:20b-cloud", "gpt-oss:120b-cloud", "qwen2.5-coder:7b", "qwen3:8b"]
+                AvailableModels =
+                [
+                    "gemma3",
+                    "mistral:latest",
+                    "gemma4:31b-cloud",
+                    "gpt-oss:20b-cloud",
+                    "gpt-oss:120b-cloud",
+                    "qwen2.5-coder:7b",
+                    "qwen3:8b"
+                ]
             })
-            .AddSingleton(_commands)
             .AddSingleton(
                 new Db(
                     $"Host={config["db:host"] ?? "localhost"};" +
@@ -65,24 +76,32 @@ class Program
                     $"Username={config["db:user"] ?? "bot"};" +
                     $"Password={config["password"] ?? "pass"}"
                 )
-                )
+            )
             .AddSingleton<ChatHistoryService>()
-            .AddSingleton(lavaNode)
+            .AddSingleton<AudioService>()
+            .AddSingleton(_lavaNode)
             .AddSingleton<HttpClient>(_ =>
+            {
+                return new HttpClient
                 {
-                    return new HttpClient
-                    {
-                        BaseAddress = new Uri(config["ollamaBaseUrl"] ?? "http://localhost:11434"),
-                    };
-                })
+                    BaseAddress = new Uri(config["ollamaBaseUrl"] ?? "http://localhost:11434"),
+                };
+            })
             .BuildServiceProvider();
 
-        _commandHandler = new CommandHandler(_client, _commands, config["prefix"] ?? "!", services);
-        
+        _commandHandler = new CommandHandler(_client, _commands, config["prefix"] ?? "!", _services);
+
         await _commandHandler.InstallCommandsAsync();
         
-        await lavaNode.ConnectAsync();
-        
+        _client.Ready += async () =>
+        {
+            Console.WriteLine("Discord READY → connecting Lavalink...");
+            await _lavaNode.ConnectAsync();
+        };
+
+        await _client.LoginAsync(TokenType.Bot, config["token"]);
+        await _client.StartAsync();
+
         await Task.Delay(-1);
     }
 
