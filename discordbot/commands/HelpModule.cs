@@ -3,26 +3,19 @@ using Discord.Commands;
 
 namespace discordbot.commands;
 
-public class HelpModule : ModuleBase<SocketCommandContext>
+public class HelpModule(CommandService commands) : ModuleBase<SocketCommandContext>
 {
-    private readonly CommandService _commands;
-    
-    public  HelpModule(CommandService commands)
-    {
-        _commands = commands;
-    }
-
     [Command("help")]
     [Summary("Displays help")]
-    public async Task help()
+    public async Task Help()
     {
-        var commands = _commands.Commands;
+        var commands1 = commands.Commands;
 
         var sb = new StringBuilder();
 
         sb.AppendLine("```");
         
-        foreach(var cmd in commands)
+        foreach(var cmd in commands1)
         {
             var args = string.Join(" ", cmd.Parameters.Select(p => $"<{p.Name}>"));
             sb.AppendLine($"{cmd.Name} {args} - {cmd.Summary ?? "No description"}");

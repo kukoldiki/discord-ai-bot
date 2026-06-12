@@ -1,18 +1,17 @@
 ﻿using System.Net.Http.Json;
 using Discord.Commands;
 using discordbot.models;
-using Microsoft.Extensions.Logging;
 
 namespace discordbot.commands;
 
-public class AIModule : ModuleBase<SocketCommandContext>
+public class AiModule : ModuleBase<SocketCommandContext>
 {
     private readonly HttpClient _ollamaClient;
     private readonly Db _db;
     private readonly CommandConfig _config;
     private readonly ChatHistoryService _history;
     
-    public AIModule(HttpClient ollamaClient, Db db, CommandConfig config, ChatHistoryService historyService)
+    public AiModule(HttpClient ollamaClient, Db db, CommandConfig config, ChatHistoryService historyService)
     {
         _ollamaClient = ollamaClient;
         _db = db;
@@ -23,7 +22,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
 
     [Command("prompt")]
     [Summary("Set system prompt")]
-    public async Task prompt([Remainder] string input)
+    public async Task Prompt([Remainder] string input)
     {
         try
         {
@@ -40,7 +39,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
 
     [Command("settings")]
     [Summary("Show user settings")]
-    public async Task settings()
+    public async Task Settings()
     {
         try
         {
@@ -56,7 +55,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
 
     [Command("models")]
     [Summary("Show all available models")]
-    public async Task models()
+    public async Task Models()
     {
         try
         {
@@ -70,7 +69,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
 
     [Command("model")]
     [Summary("Set model")]
-    public async Task model([Remainder] string model)
+    public async Task Model([Remainder] string model)
     {
         try
         {
@@ -92,7 +91,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
     
     [Command("clear")]
     [Summary("Clear history")]
-    public async Task clearHistory()
+    public async Task ClearHistory()
     {
         try
         {
@@ -107,7 +106,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
 
     [Command("btw")]
     [Summary("Ask AI without saving to history")]
-    public async Task btw([Remainder] string prompt)
+    public async Task Btw([Remainder] string prompt)
     {
         try
         {
@@ -117,7 +116,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
             {
                 model = settings.Model,
                 stream = false,
-                prompt = prompt
+                prompt
             });
             
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
@@ -162,7 +161,7 @@ public class AIModule : ModuleBase<SocketCommandContext>
 
     [Command("ask")]
     [Summary("Ask smart AI.")]
-    public async Task ask([Remainder] string prompt)
+    public async Task Ask([Remainder] string prompt)
     {
         try
         {

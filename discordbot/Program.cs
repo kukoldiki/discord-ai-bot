@@ -1,9 +1,7 @@
-﻿using System;
-using Discord;
+﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using discordbot.models;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -55,7 +53,7 @@ class Program
                 )
                 )
             .AddSingleton<ChatHistoryService>()
-            .AddSingleton<HttpClient>(sp =>
+            .AddSingleton<HttpClient>(_ =>
                 {
                     return new HttpClient
                     {
