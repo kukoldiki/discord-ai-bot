@@ -10,12 +10,14 @@ public class AIModule : ModuleBase<SocketCommandContext>
     private readonly HttpClient _ollamaClient;
     private readonly Db _db;
     private readonly CommandConfig _config;
+    private readonly ChatHistoryService _history;
     
-    public AIModule(HttpClient ollamaClient, Db db, CommandConfig config)
+    public AIModule(HttpClient ollamaClient, Db db, CommandConfig config, ChatHistoryService historyService)
     {
         _ollamaClient = ollamaClient;
         _db = db;
         _config = config;
+        _history = historyService;
         Log.Debug($"DB Initialized! ${db}");
     }
 
@@ -84,6 +86,20 @@ public class AIModule : ModuleBase<SocketCommandContext>
         }
     }
     
+    [Command("clear")]
+    public async Task clearHistory()
+    {
+        try
+        {
+            _history.GetHistory(Context.User.Id).Clear();
+            await ReplyAsync("Done!");
+        }
+        catch  (Exception e)
+        {
+            Log.Error(e.Message);
+        }
+    }
+    
 
     [Command("ask")]
     [Summary("Ask smart AI.")]
@@ -92,24 +108,34 @@ public class AIModule : ModuleBase<SocketCommandContext>
         try
         {
             var settings = await _db.GetOrCreateUserSettings((long)Context.User.Id);
+            var history = _history.GetHistory(Context.User.Id);
+            
+            var messages = new List<object>
+            {
+                new
+                {
+                    role = "system",
+                    content = settings.SystemPrompt
+                }
+            };
+
+            messages.AddRange(history.Select(x => new
+            {
+                role = x.Role,
+                content = x.Content
+            }));
+
+            messages.Add(new
+            {
+                role = "user",
+                content = input
+            });
             
             var data = new
             {
                 model = settings.Model,
                 stream = false,
-                messages = new[]
-                {
-                    new
-                    {
-                        role = "system",
-                        content = settings.SystemPrompt
-                    },
-                    new
-                    {
-                        role = "user",
-                        content = input
-                    }
-                }
+                messages
             };
             
             await Context.Channel.TriggerTypingAsync();
@@ -128,6 +154,22 @@ public class AIModule : ModuleBase<SocketCommandContext>
             if (aiResponse.Length > 1999)
             {
                 aiResponse = aiResponse.Substring(0, 1999);
+            }
+            
+            history.Add(new ChatMessage
+            {
+                Role = "user",
+                Content = input
+            });
+            history.Add(new ChatMessage
+            {
+                Role = "assistant",
+                Content = aiResponse
+            });
+            
+            while (history.Count > 15)
+            {
+                history.RemoveAt(0);
             }
             
             await ReplyAsync(aiResponse);

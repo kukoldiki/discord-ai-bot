@@ -2,6 +2,7 @@
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using discordbot.models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,6 +53,7 @@ class Program
                     $"Password={config["password"] ?? "pass"}"
                 )
                 )
+            .AddSingleton<ChatHistoryService>()
             .AddSingleton<HttpClient>(sp =>
                 {
                     return new HttpClient
