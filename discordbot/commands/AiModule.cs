@@ -131,7 +131,7 @@ public class AiModule : ModuleBase<SocketCommandContext>
 
             if (aiResponse.Length > 1800)
             {
-                aiResponse = aiResponse.Substring(0, 1999);
+                aiResponse = aiResponse.Substring(0, 1800);
             }
             
             var outputTps = 0.0;
@@ -211,7 +211,7 @@ public class AiModule : ModuleBase<SocketCommandContext>
 
             if (aiResponse.Length > 1999)
             {
-                aiResponse = aiResponse.Substring(0, 1999);
+                aiResponse = aiResponse.Substring(0, 1800);
             }
             
             history.Add(new ChatMessage
