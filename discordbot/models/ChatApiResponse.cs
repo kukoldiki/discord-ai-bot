@@ -45,4 +45,7 @@ public class Message
 
     [JsonPropertyName("content")]
     public string Content { get; set; }
+
+    [JsonPropertyName("thinking")] 
+    public string Thinking { get; set; } = "";
 }

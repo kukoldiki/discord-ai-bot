@@ -1,6 +1,8 @@
 ﻿using System.Net.Http.Json;
+using Discord;
 using Discord.Commands;
 using discordbot.models;
+using discordbot;
 
 namespace discordbot.commands;
 
@@ -22,6 +24,24 @@ public class AiModule : ModuleBase<SocketCommandContext>
         Log.Debug($"DB Initialized! ${db}");
     }
 
+    [Command("think")]
+    [Summary("Enable/Disable thinking (when possible)")]
+    public async Task Think()
+    {
+        try
+        {
+            var settings =  await _db.GetOrCreateUserSettings((long)Context.User.Id);
+            settings.Thinking = !settings.Thinking;
+            await _db.UpdateUserSettings(settings);
+            await ReplyAsync($"Done! New value is {settings.Thinking}");
+        }
+        catch  (Exception e)
+        {
+            await ReplyAsync("Failed! Try again later");
+            Log.Error(e);
+        }
+    }
+
     [Command("prompt")]
     [Summary("Set system prompt")]
     public async Task Prompt([Remainder] string input)
@@ -29,7 +49,7 @@ public class AiModule : ModuleBase<SocketCommandContext>
         try
         {
             var settings = await _db.GetOrCreateUserSettings((long)Context.User.Id);
-            settings.SystemPrompt = $"{input}\n\nYour answer should be a maximum of {maxMessageLength} characters!";
+            settings.SystemPrompt = input;
             await _db.UpdateUserSettings(settings);
             await ReplyAsync("Done!");
         }
@@ -107,7 +127,7 @@ public class AiModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("btw")]
-    [Summary("Ask AI without saving to history")]
+    [Summary("Ask AI without saving to history. NO THINKING!")]
     public async Task Btw([Remainder] string prompt)
     {
         try
@@ -130,11 +150,6 @@ public class AiModule : ModuleBase<SocketCommandContext>
             var obj = await response.Content.ReadFromJsonAsync<GenerateApiResponse>();
 
             var aiResponse = obj?.Response ?? "No response";
-
-            if (aiResponse.Length > maxMessageLength)
-            {
-                aiResponse = aiResponse.Substring(0, maxMessageLength);
-            }
             
             var outputTps = 0.0;
             var inputTps = 0.0;
@@ -151,8 +166,35 @@ public class AiModule : ModuleBase<SocketCommandContext>
                     inputTps = obj.PromptEvalCount / (obj.PromptEvalDuration / 1_000_000_000.0);
                 }
             }
-            
-            await ReplyAsync($"{aiResponse}\n`In: {obj?.PromptEvalCount ?? 0} {inputTps:f1}T/S | Out: {obj?.EvalCount ?? 0} {outputTps:f1}T/S`");
+            var tokensStr = $"`In: {obj?.PromptEvalCount ?? 0} {inputTps:f1}T/s | Out: {obj?.EvalCount ?? 0} {outputTps:f1}T/s`";
+
+            if (aiResponse.Length > maxMessageLength)
+            {
+                var parts = Utils.SplitByLength(aiResponse, maxMessageLength);
+                IThreadChannel? thread = null;
+                foreach (var part in parts)
+                {
+                    if (thread == null)
+                    {
+                        var message = await ReplyAsync($"{part}\n\n{tokensStr}");
+                        if (Context.Channel is ITextChannel textChannel)
+                        {
+                            thread = await textChannel.CreateThreadAsync(
+                                name: "Response",
+                                message: message
+                            );
+                        }
+                    }
+                    else
+                    {
+                        await thread.SendMessageAsync(part);
+                    }
+                }
+            }
+            else
+            {
+                await ReplyAsync($"{aiResponse}\n\n{tokensStr}");
+            }
         }
         catch (Exception e)
         {
@@ -162,7 +204,7 @@ public class AiModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("ask")]
-    [Summary("Ask smart AI.")]
+    [Summary("Ask smart AI. With history saving.")]
     public async Task Ask([Remainder] string prompt)
     {
         try
@@ -195,7 +237,8 @@ public class AiModule : ModuleBase<SocketCommandContext>
             {
                 model = settings.Model,
                 stream = false,
-                messages
+                messages,
+                think = settings.Thinking
             };
             
             await Context.Channel.TriggerTypingAsync();
@@ -210,11 +253,8 @@ public class AiModule : ModuleBase<SocketCommandContext>
             var obj = await response.Content.ReadFromJsonAsync<ChatApiResponse>();
 
             var aiResponse = obj?.Message.Content ?? "No response";
-
-            if (aiResponse.Length > maxMessageLength)
-            {
-                aiResponse = aiResponse.Substring(0, maxMessageLength);
-            }
+            
+            Log.Info($"{await response.Content.ReadAsStringAsync()}");
             
             history.Add(new ChatMessage
             {
@@ -248,7 +288,61 @@ public class AiModule : ModuleBase<SocketCommandContext>
                 }
             }
 
-            await ReplyAsync($"{aiResponse}\n`In: {obj?.PromptEvalCount ?? 0} {inputTps:f1}T/S | Out: {obj?.EvalCount ?? 0} {outputTps:f1}T/S`");
+            var tokensStr = $"`In: {obj?.PromptEvalCount ?? 0} {inputTps:f1}T/s | Out: {obj?.EvalCount ?? 0} {outputTps:f1}T/s`";
+
+            IThreadChannel? thread = null;
+            IUserMessage? message = null;
+            
+            if (aiResponse.Length > maxMessageLength)
+            {
+                var parts = Utils.SplitByLength(aiResponse, maxMessageLength);
+                foreach (var part in parts)
+                {
+                    if (thread == null)
+                    {
+                        message = await ReplyAsync($"{part}\n\n{tokensStr}");
+                        if (Context.Channel is ITextChannel textChannel)
+                        {
+                            thread = await textChannel.CreateThreadAsync(
+                                name: "Response",
+                                message: message
+                            );
+                        }
+                    }
+                    else
+                    {
+                        await thread.SendMessageAsync(part);
+                    }
+                }
+            }
+            else
+            {
+                await ReplyAsync($"{aiResponse}\n\n{tokensStr}");
+            }
+            if(obj.Message.Thinking.Length == 0 || message == null)
+                return;
+            if (thread == null)
+            {
+                if (Context.Channel is ITextChannel textChannel)
+                {
+                    thread = await textChannel.CreateThreadAsync(
+                        name: "Thinking",
+                        message: message
+                    );
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            var thinkStr = obj.Message.Thinking;
+            if (thinkStr.Length > maxMessageLength)
+            {
+                thinkStr = thinkStr.Substring(0, maxMessageLength);
+            }
+
+            await thread.SendMessageAsync($"Thinking:\n\n{thinkStr}");
         }
         catch (Exception e)
         {

@@ -35,8 +35,8 @@ public class Db
         };
 
         await conn.ExecuteAsync(
-            @"INSERT INTO user_settings (user_id, model, system_prompt)
-              VALUES (@UserId, @Model, @SystemPrompt)",
+            @"INSERT INTO user_settings (user_id, model, system_prompt, thinking)
+              VALUES (@UserId, @Model, @SystemPrompt, @Thinking)",
             settings
         );
 
@@ -51,7 +51,8 @@ public class Db
         var rows = await conn.ExecuteAsync(
             @"UPDATE user_settings
       SET model = @Model,
-          system_prompt = @SystemPrompt
+          system_prompt = @SystemPrompt,
+      thinking = @Thinking
       WHERE user_id = @UserId",
             s
         );
