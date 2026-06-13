@@ -317,7 +317,7 @@ public class AiModule : ModuleBase<SocketCommandContext>
             }
             else
             {
-                await ReplyAsync($"{aiResponse}\n\n{tokensStr}");
+                message = await ReplyAsync($"{aiResponse}\n\n{tokensStr}");
             }
             if(obj.Message.Thinking.Length == 0 || message == null)
                 return;
