@@ -33,8 +33,10 @@ public sealed class AudioService {
         
         private Task OnTrackStartAsync(TrackStartEventArg arg) {
             var track = arg.Track;
-            return SendAndLogMessageAsync(arg.GuildId,
-                $"Now playing: {track.Title} - {track.Author} ({track.Duration.Minutes}:{track.Duration.Seconds})");
+            return SendAndLogMessageAsync(
+                arg.GuildId,
+                $"Now playing: {track.Title} - {track.Author} ({track.Duration.Minutes}:{track.Duration.Seconds:D2})"
+            );
         }
         
         private async Task OnTrackEndAsync(TrackEndEventArg arg) {

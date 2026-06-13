@@ -59,13 +59,14 @@ class Program
             {
                 AvailableModels =
                 [
-                    "gemma3",
-                    "mistral:latest",
-                    "gemma4:31b-cloud",
-                    "gpt-oss:20b-cloud",
-                    "gpt-oss:120b-cloud",
-                    "qwen2.5-coder:7b",
-                    "qwen3:8b"
+                    new("gemma3", false),
+                    new("mistral:latest", false),
+                    new("gemma4:31b-cloud", true),
+                    new("gpt-oss:20b-cloud", true),
+                    new("gpt-oss:120b-cloud", true),
+                    new("qwen2.5-coder:7b", false),
+                    new("qwen3:8b", true),
+                    new("gemma4:e4b", false)
                 ]
             })
             .AddSingleton(

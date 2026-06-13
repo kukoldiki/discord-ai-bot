@@ -43,6 +43,11 @@ public class MusicModule : ModuleBase<SocketCommandContext>
     [Command("play")]
     [Summary("Play a track. Accepts ytsearch, ytmsearch, scsearch")]
     public async Task PlayAsync([Remainder] string searchQuery) {
+        var voiceState = Context.User as IVoiceState;
+        if (voiceState?.VoiceChannel == null) {
+            await ReplyAsync("You must be connected to a voice channel!");
+            return;
+        }
         if (string.IsNullOrWhiteSpace(searchQuery)) {
             await ReplyAsync("Please provide search terms.");
             return;
@@ -50,7 +55,6 @@ public class MusicModule : ModuleBase<SocketCommandContext>
         
         var player = await _lavaNode.TryGetPlayerAsync(Context.Guild.Id);
         if (player == null) {
-            var voiceState = Context.User as IVoiceState;
             if (voiceState?.VoiceChannel == null) {
                 await ReplyAsync("You must be connected to a voice channel!");
                 return;
@@ -104,6 +108,11 @@ public class MusicModule : ModuleBase<SocketCommandContext>
     [Command("stop")]
     [Summary("Stops the player")]
     public async Task StopAsync() {
+        var voiceState = Context.User as IVoiceState;
+        if (voiceState?.VoiceChannel == null) {
+            await ReplyAsync("You must be connected to a voice channel!");
+            return;
+        }
         var player = await _lavaNode.TryGetPlayerAsync(Context.Guild.Id);
         if (player == null)
         {
@@ -129,6 +138,11 @@ public class MusicModule : ModuleBase<SocketCommandContext>
     [Summary("Sets the volume of a player")]
     public async Task SetVolumeAsync(int volume)
     {
+        var voiceState = Context.User as IVoiceState;
+        if (voiceState?.VoiceChannel == null) {
+            await ReplyAsync("You must be connected to a voice channel!");
+            return;
+        }
         var player = await _lavaNode.TryGetPlayerAsync(Context.Guild.Id);
         if (player == null)
         {
@@ -136,9 +150,9 @@ public class MusicModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        if (volume < 0 || volume > 100)
+        if (volume < 1 || volume > 100)
         {
-            await ReplyAsync("Volume must be between 0 and 100.");
+            await ReplyAsync("Volume must be between 1 and 100.");
             return;
         }
         await player.SetVolumeAsync(_lavaNode, volume);
@@ -150,6 +164,11 @@ public class MusicModule : ModuleBase<SocketCommandContext>
     public async Task SkipAsync() {
         try
         {
+            var voiceState = Context.User as IVoiceState;
+            if (voiceState?.VoiceChannel == null) {
+                await ReplyAsync("You must be connected to a voice channel!");
+                return;
+            }
             var player = await _lavaNode.TryGetPlayerAsync(Context.Guild.Id);
             if (player == null)
             {

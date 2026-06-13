@@ -1,8 +1,8 @@
 ﻿using System.Net.Http.Json;
+using System.Text;
 using Discord;
 using Discord.Commands;
 using discordbot.models;
-using discordbot;
 
 namespace discordbot.commands;
 
@@ -13,7 +13,7 @@ public class AiModule : ModuleBase<SocketCommandContext>
     private readonly CommandConfig _config;
     private readonly ChatHistoryService _history;
     
-    private static readonly int maxMessageLength = 1900;
+    private static readonly int MaxMessageLength = 1900;
     
     public AiModule(HttpClient ollamaClient, Db db, CommandConfig config, ChatHistoryService historyService)
     {
@@ -66,7 +66,7 @@ public class AiModule : ModuleBase<SocketCommandContext>
         try
         {
             var settings = await _db.GetOrCreateUserSettings((long)Context.User.Id);
-            await ReplyAsync($"User settings:\nModel: {settings.Model}\n\nSystem prompt: {settings.SystemPrompt}");
+            await ReplyAsync($"User settings:\nModel: {settings.Model}\nThinking: {settings.Thinking}\n\nSystem prompt: {settings.SystemPrompt}");
         }
         catch (Exception e)
         {
@@ -81,7 +81,15 @@ public class AiModule : ModuleBase<SocketCommandContext>
     {
         try
         {
-            await ReplyAsync(String.Join(", ", _config.AvailableModels));
+            var sb = new StringBuilder();
+            foreach (var model in _config.AvailableModels)
+            {
+                sb.Append(model.Name);
+                if (model.Thinking)
+                    sb.Append(" (can think)");
+                sb.Append("\n");
+            }
+            await ReplyAsync(sb.ToString());
         }
         catch (Exception e)
         {
@@ -91,17 +99,18 @@ public class AiModule : ModuleBase<SocketCommandContext>
 
     [Command("model")]
     [Summary("Set model")]
-    public async Task Model([Remainder] string model)
+    public async Task Model([Remainder] string modelName)
     {
         try
         {
+            var model = _config.AvailableModels.FirstOrDefault(x => x.Name == modelName);
             if (!_config.AvailableModels.Contains(model))
             {
                 await ReplyAsync("Model not found! Try run models command");
                 return;
             }
             var settings = await _db.GetOrCreateUserSettings((long)Context.User.Id);
-            settings.Model = model;
+            settings.Model = model.Name;
             await _db.UpdateUserSettings(settings);
             await ReplyAsync("Done!");
         }
@@ -168,9 +177,9 @@ public class AiModule : ModuleBase<SocketCommandContext>
             }
             var tokensStr = $"`In: {obj?.PromptEvalCount ?? 0} {inputTps:f1}T/s | Out: {obj?.EvalCount ?? 0} {outputTps:f1}T/s`";
 
-            if (aiResponse.Length > maxMessageLength)
+            if (aiResponse.Length > MaxMessageLength)
             {
-                var parts = Utils.SplitByLength(aiResponse, maxMessageLength);
+                var parts = Utils.SplitByLength(aiResponse, MaxMessageLength);
                 IThreadChannel? thread = null;
                 foreach (var part in parts)
                 {
@@ -205,11 +214,18 @@ public class AiModule : ModuleBase<SocketCommandContext>
 
     [Command("ask")]
     [Summary("Ask smart AI. With history saving.")]
+    [Alias("ai")]
     public async Task Ask([Remainder] string prompt)
     {
         try
         {
             var settings = await _db.GetOrCreateUserSettings((long)Context.User.Id);
+            var model = _config.AvailableModels.FirstOrDefault(x => x.Name == settings.Model);
+            if (model == null)
+            {
+                await ReplyAsync($"{settings.Model} not found");
+                return;
+            }
             var history = _history.GetHistory(Context.User.Id);
             
             var messages = new List<object>
@@ -235,10 +251,10 @@ public class AiModule : ModuleBase<SocketCommandContext>
             
             var data = new
             {
-                model = settings.Model,
+                model = model.Name,
                 stream = false,
                 messages,
-                think = settings.Thinking
+                think = settings.Thinking && model.Thinking
             };
             
             await Context.Channel.TriggerTypingAsync();
@@ -293,9 +309,9 @@ public class AiModule : ModuleBase<SocketCommandContext>
             IThreadChannel? thread = null;
             IUserMessage? message = null;
             
-            if (aiResponse.Length > maxMessageLength)
+            if (aiResponse.Length > MaxMessageLength)
             {
-                var parts = Utils.SplitByLength(aiResponse, maxMessageLength);
+                var parts = Utils.SplitByLength(aiResponse, MaxMessageLength);
                 foreach (var part in parts)
                 {
                     if (thread == null)
@@ -337,9 +353,9 @@ public class AiModule : ModuleBase<SocketCommandContext>
             }
 
             var thinkStr = obj.Message.Thinking;
-            if (thinkStr.Length > maxMessageLength)
+            if (thinkStr.Length > MaxMessageLength)
             {
-                thinkStr = thinkStr.Substring(0, maxMessageLength);
+                thinkStr = thinkStr.Substring(0, MaxMessageLength);
             }
 
             await thread.SendMessageAsync($"Thinking:\n\n{thinkStr}");
