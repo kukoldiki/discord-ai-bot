@@ -66,7 +66,9 @@ class Program
                     new("gpt-oss:120b-cloud", true),
                     new("qwen2.5-coder:7b", false),
                     new("qwen3:8b", true),
-                    new("gemma4:e4b", false)
+                    new("gemma4:e4b", false),
+                    new ("nemotron-3-nano:30b-cloud", true),
+                    new ("qwen3-coder-next:cloud", false)
                 ]
             })
             .AddSingleton(

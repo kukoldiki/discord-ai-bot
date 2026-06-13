@@ -136,18 +136,29 @@ public class AiModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("btw")]
-    [Summary("Ask AI without saving to history. NO THINKING!")]
+    [Summary("Ask AI without saving/reading history.")]
     public async Task Btw([Remainder] string prompt)
     {
         try
         {
             var settings = await _db.GetOrCreateUserSettings((long)Context.User.Id);
+            var model = _config.AvailableModels.FirstOrDefault(x => x.Name == settings.Model);
+            if (model == null)
+            {
+                await ReplyAsync($"{settings.Model} not found");
+                return;
+            }
             await Context.Channel.TriggerTypingAsync();
-            var response = await _ollamaClient.PostAsJsonAsync("/api/generate", new
+
+            var response = await _ollamaClient.PostAsJsonAsync("/api/chat", new
             {
                 model = settings.Model,
                 stream = false,
-                prompt
+                messages = new[]
+                {
+                    new { role = "user", content = prompt }
+                },
+                think = settings.Thinking && model.Thinking,
             });
             
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
@@ -156,9 +167,9 @@ public class AiModule : ModuleBase<SocketCommandContext>
                 Log.Error($"Failed to ask model!\n${await response.Content.ReadAsStringAsync()}");
                 return;
             }
-            var obj = await response.Content.ReadFromJsonAsync<GenerateApiResponse>();
+            var obj = await response.Content.ReadFromJsonAsync<ChatApiResponse>();
 
-            var aiResponse = obj?.Response ?? "No response";
+            var aiResponse = obj?.Message.Content ?? "No response";
             
             var outputTps = 0.0;
             var inputTps = 0.0;
@@ -175,17 +186,20 @@ public class AiModule : ModuleBase<SocketCommandContext>
                     inputTps = obj.PromptEvalCount / (obj.PromptEvalDuration / 1_000_000_000.0);
                 }
             }
+            
             var tokensStr = $"`In: {obj?.PromptEvalCount ?? 0} {inputTps:f1}T/s | Out: {obj?.EvalCount ?? 0} {outputTps:f1}T/s`";
-
+            
+            IThreadChannel? thread = null;
+            IUserMessage? message = null;
+            
             if (aiResponse.Length > MaxMessageLength)
             {
                 var parts = Utils.SplitByLength(aiResponse, MaxMessageLength);
-                IThreadChannel? thread = null;
                 foreach (var part in parts)
                 {
                     if (thread == null)
                     {
-                        var message = await ReplyAsync($"{part}\n\n{tokensStr}");
+                        message = await ReplyAsync($"{part}\n\n{tokensStr}");
                         if (Context.Channel is ITextChannel textChannel)
                         {
                             thread = await textChannel.CreateThreadAsync(
@@ -202,7 +216,37 @@ public class AiModule : ModuleBase<SocketCommandContext>
             }
             else
             {
-                await ReplyAsync($"{aiResponse}\n\n{tokensStr}");
+                message = await ReplyAsync($"{aiResponse}\n\n{tokensStr}");
+            }
+            if(obj.Message.Thinking.Length == 0 || message == null)
+                return;
+            if (thread == null)
+            {
+                if (Context.Channel is ITextChannel textChannel)
+                {
+                    thread = await textChannel.CreateThreadAsync(
+                        name: "Thinking",
+                        message: message
+                    );
+                }
+                else
+                {
+                    return;
+                }
+            }
+            
+            var thinkParts = Utils.SplitByLength(obj.Message.Thinking, MaxMessageLength);
+            IUserMessage? thinkMessage = null;
+            foreach (var part in thinkParts)
+            {
+                if (thinkMessage == null)
+                {
+                    thinkMessage = await thread.SendMessageAsync(part);
+                }
+                else
+                {
+                    thinkMessage = await thinkMessage.ReplyAsync(part);
+                }
             }
         }
         catch (Exception e)
@@ -351,14 +395,22 @@ public class AiModule : ModuleBase<SocketCommandContext>
                     return;
                 }
             }
-
-            var thinkStr = obj.Message.Thinking;
-            if (thinkStr.Length > MaxMessageLength)
+            
+            var thinkParts = Utils.SplitByLength(obj.Message.Thinking, MaxMessageLength);
+            IUserMessage? thinkMessage = null;
+            foreach (var part in thinkParts)
             {
-                thinkStr = thinkStr.Substring(0, MaxMessageLength);
+                if (thinkMessage == null)
+                {
+                    thinkMessage = await thread.SendMessageAsync(part);
+                }
+                else
+                {
+                    thinkMessage = await thinkMessage.ReplyAsync(part);
+                }
             }
 
-            await thread.SendMessageAsync($"Thinking:\n\n{thinkStr}");
+            //await thread.SendMessageAsync($"Thinking:\n\n{thinkStr}");
         }
         catch (Exception e)
         {
