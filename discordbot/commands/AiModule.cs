@@ -254,7 +254,7 @@ public class AiModule : ModuleBase<SocketCommandContext>
 
             var aiResponse = obj?.Message.Content ?? "No response";
             
-            Log.Info($"{await response.Content.ReadAsStringAsync()}");
+            // Log.Info($"{await response.Content.ReadAsStringAsync()}");
             
             history.Add(new ChatMessage
             {

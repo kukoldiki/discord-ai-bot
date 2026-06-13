@@ -21,6 +21,7 @@ public class MusicModule : ModuleBase<SocketCommandContext>
     }
     
     [Command("join")]
+    [Summary("Joins a voice channel")]
     public async Task JoinAsync() {
         var voiceState = Context.User as IVoiceState;
         if (voiceState?.VoiceChannel == null) {
@@ -40,6 +41,7 @@ public class MusicModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("play")]
+    [Summary("Play a track. Accepts ytsearch, ytmsearch, scsearch")]
     public async Task PlayAsync([Remainder] string searchQuery) {
         if (string.IsNullOrWhiteSpace(searchQuery)) {
             await ReplyAsync("Please provide search terms.");
@@ -82,6 +84,7 @@ public class MusicModule : ModuleBase<SocketCommandContext>
     }
     
     [Command("leave")]
+    [Summary("Leaves current voice channel")]
     public async Task LeaveAsync() {
         var voiceChannel = (Context.User as IVoiceState).VoiceChannel;
         if (voiceChannel == null) {
@@ -99,10 +102,15 @@ public class MusicModule : ModuleBase<SocketCommandContext>
     }
     
     [Command("stop")]
+    [Summary("Stops the player")]
     public async Task StopAsync() {
         var player = await _lavaNode.TryGetPlayerAsync(Context.Guild.Id);
-        if(player == null)
+        if (player == null)
+        {
+            await ReplyAsync("No active player!");
             return;
+        }
+
         if (!player.State.IsConnected || player.Track == null) {
             await ReplyAsync("Woah, can't stop won't stop.");
             return;
@@ -117,13 +125,38 @@ public class MusicModule : ModuleBase<SocketCommandContext>
         }
     }
     
+    [Command("volume")]
+    [Summary("Sets the volume of a player")]
+    public async Task SetVolumeAsync(int volume)
+    {
+        var player = await _lavaNode.TryGetPlayerAsync(Context.Guild.Id);
+        if (player == null)
+        {
+            await ReplyAsync("No active player!");
+            return;
+        }
+
+        if (volume < 0 || volume > 100)
+        {
+            await ReplyAsync("Volume must be between 0 and 100.");
+            return;
+        }
+        await player.SetVolumeAsync(_lavaNode, volume);
+        await ReplyAsync($"Volume set to {volume}.");
+    }
+    
     [Command("skip")]
+    [Summary("Skips a track")]
     public async Task SkipAsync() {
         try
         {
             var player = await _lavaNode.TryGetPlayerAsync(Context.Guild.Id);
-            if(player == null)
+            if (player == null)
+            {
+                await ReplyAsync("No active player!");
                 return;
+            }
+
             if (!player.State.IsConnected)
             {
                 await ReplyAsync("Woaaah there, I can't skip when nothing is playing.");
