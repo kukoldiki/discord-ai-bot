@@ -6,4 +6,5 @@ public class CommandConfig
 {
     // public HttpClient ollamaClient { get; set; }
     public AiModel[] AvailableModels { get; set; }
+    public string searxngAddress { get; set; }
 }

@@ -9,7 +9,6 @@ namespace discordbot.commands;
 
 public class MusicModule : ModuleBase<SocketCommandContext>
 {
-    private static IAudioClient _audioClient;
     private readonly LavaNode _lavaNode;
     private readonly AudioService _audioService;
     

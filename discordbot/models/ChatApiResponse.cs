@@ -48,4 +48,22 @@ public class Message
 
     [JsonPropertyName("thinking")] 
     public string Thinking { get; set; } = "";
+    
+    [JsonPropertyName("tool_calls")]
+    public List<ToolCall>? ToolCalls { get; set; }
+}
+
+public class ToolCall
+{
+    [JsonPropertyName("function")]
+    public ToolFunction Function { get; set; }
+}
+
+public class ToolFunction
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; }
+
+    [JsonPropertyName("arguments")]
+    public Dictionary<string, object> Arguments { get; set; }
 }

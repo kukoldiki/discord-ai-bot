@@ -59,17 +59,20 @@ class Program
             {
                 AvailableModels =
                 [
-                    new("gemma3", false),
-                    new("mistral:latest", false),
-                    new("gemma4:31b-cloud", true),
-                    new("gpt-oss:20b-cloud", true),
-                    new("gpt-oss:120b-cloud", true),
-                    new("qwen2.5-coder:7b", false),
-                    new("qwen3:8b", true),
-                    new("gemma4:e4b", false),
-                    new ("nemotron-3-nano:30b-cloud", true),
-                    new ("qwen3-coder-next:cloud", false)
-                ]
+                    new ("llava", false, true, false),
+                    new ("llama3.1", false, false, true),
+                    new("gemma3", false, true, false),
+                    new("mistral:latest", false, false, false),
+                    new("gemma4:31b-cloud", true, true, true),
+                    new("gpt-oss:20b-cloud", true, false, false),
+                    new("gpt-oss:120b-cloud", true, false, true),
+                    new("qwen2.5-coder:7b", false, false, true),
+                    new("qwen3:8b", true, false, true),
+                    new("gemma4:e4b", false, true, true),
+                    new ("nemotron-3-nano:30b-cloud", true, false, true),
+                    new ("qwen3-coder-next:cloud", false, false, true)
+                ],
+                searxngAddress = "http://localhost:1852/"
             })
             .AddSingleton(
                 new Db(
@@ -88,6 +91,7 @@ class Program
                 return new HttpClient
                 {
                     BaseAddress = new Uri(config["ollamaBaseUrl"] ?? "http://localhost:11434"),
+                    Timeout = TimeSpan.FromMinutes(5)
                 };
             })
             .BuildServiceProvider();
