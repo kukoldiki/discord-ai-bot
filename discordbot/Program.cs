@@ -70,7 +70,9 @@ class Program
                     new("qwen3:8b", true, false, true),
                     new("gemma4:e4b", false, true, true),
                     new ("nemotron-3-nano:30b-cloud", true, false, true),
-                    new ("qwen3-coder-next:cloud", false, false, true)
+                    new ("rnj-1", false, false, true),
+                    new("rnj-1:8b-cloud", false, false, true)
+                    //new ("qwen3-coder-next:cloud", false, false, true)
                 ],
                 searxngAddress = "http://localhost:1852/"
             })
@@ -88,11 +90,13 @@ class Program
             .AddSingleton(_lavaNode)
             .AddSingleton<HttpClient>(_ =>
             {
-                return new HttpClient
+                var client = new HttpClient
                 {
                     BaseAddress = new Uri(config["ollamaBaseUrl"] ?? "http://localhost:11434"),
                     Timeout = TimeSpan.FromMinutes(5)
                 };
+                client.DefaultRequestHeaders.Add("User-Agent", $"discordbotai/1.0 ({config["mail"] ?? "null"})");
+                return client;
             })
             .BuildServiceProvider();
 
