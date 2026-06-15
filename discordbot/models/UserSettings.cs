@@ -8,6 +8,8 @@ public class UserSettings
     public long UserId { get; set; }
 
     public string Model { get; set; } = "gemma4:31b-cloud";
+
+    public string Profile { get; set; } = "assistant";
     public string SystemPrompt { get; set; } = "You are helpful assistant";
     
     public bool Thinking { get; set; } = false;

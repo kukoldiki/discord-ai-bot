@@ -1,10 +1,14 @@
-﻿using Discord;
+﻿using System.Reflection;
+using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using discordbot.models;
+using discordbot.profiles;
+using discordbot.tools;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Npgsql;
 using Victoria;
 
 namespace discordbot;
@@ -22,6 +26,8 @@ class Program
     public static async Task Main(string[] args)
     {
         Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
+        
+        NpgsqlConnection.GlobalTypeMapper.UseVector();
 
         var config = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json")
@@ -52,15 +58,15 @@ class Program
         
         _commands = new CommandService();
 
-        _services = new ServiceCollection()
+        var services = new ServiceCollection()
             .AddSingleton(_client)
             .AddSingleton(_commands)
             .AddSingleton(new CommandConfig()
             {
                 AvailableModels =
                 [
-                    new ("llava", false, true, false),
-                    new ("llama3.1", false, false, true),
+                    new("llava", false, true, false),
+                    new("llama3.1", false, false, true),
                     new("gemma3", false, true, false),
                     new("mistral:latest", false, false, false),
                     new("gemma4:31b-cloud", true, true, true),
@@ -69,8 +75,8 @@ class Program
                     new("qwen2.5-coder:7b", false, false, true),
                     new("qwen3:8b", true, false, true),
                     new("gemma4:e4b", false, true, true),
-                    new ("nemotron-3-nano:30b-cloud", true, false, true),
-                    new ("rnj-1", false, false, true),
+                    new("nemotron-3-nano:30b-cloud", true, false, true),
+                    new("rnj-1", false, false, true),
                     new("rnj-1:8b-cloud", false, false, true)
                     //new ("qwen3-coder-next:cloud", false, false, true)
                 ],
@@ -88,6 +94,7 @@ class Program
             .AddSingleton<ChatHistoryService>()
             .AddSingleton<AudioService>()
             .AddSingleton(_lavaNode)
+            .AddSingleton<ProfileRegistry>()
             .AddSingleton<HttpClient>(_ =>
             {
                 var client = new HttpClient
@@ -97,9 +104,19 @@ class Program
                 };
                 client.DefaultRequestHeaders.Add("User-Agent", $"discordbotai/1.0 ({config["mail"] ?? "null"})");
                 return client;
-            })
-            .BuildServiceProvider();
+            });
 
+        var toolTypes = Assembly.GetExecutingAssembly()
+            .GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(ITool).IsAssignableFrom(t));
+
+        foreach (var type in toolTypes)
+            services.AddSingleton(typeof(ITool), type);
+
+        services.AddSingleton<ToolRegistry>();
+        
+        _services = services.BuildServiceProvider();
+        
         _commandHandler = new CommandHandler(_client, _commands, config["prefix"] ?? "!", _services);
 
         await _commandHandler.InstallCommandsAsync();
