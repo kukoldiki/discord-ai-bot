@@ -14,7 +14,8 @@ public class WriteChannelTool : ITool
             Description = "Send a message to a Discord channel. " +
                           "Use this only when the user explicitly asks to send a message " +
                           "to another channel or when a task requires posting information " +
-                          "to a specific Discord channel.",
+                          "to a specific Discord channel." +
+                          "Dont use this for spam!",
             Parameters = new()
             {
                 Properties = new()
@@ -41,6 +42,7 @@ public class WriteChannelTool : ITool
 
     public async Task<string> ExecuteAsync(ToolFunction func, SocketCommandContext ctx)
     {
+        // return "Tool disabled because you're spamming";
         try
         {
             if (!func.Arguments.TryGetValue("channel_name", out var name))

@@ -44,9 +44,9 @@ class Program
         
         _lavaConfig = new Configuration
         {
-            Hostname = "127.0.0.1",
-            Port = 8080,
-            Authorization = "youshallnotpass",
+            Hostname = config["lavalink:host"] ?? "host.docker.internal",
+            Port = int.Parse(config["lavalink:port"] ?? "8080"),
+            Authorization = config["lavalink:password"] ?? "youshallnotpass",
             SelfDeaf = true
         };
 
@@ -68,6 +68,7 @@ class Program
                     new("llava", false, true, false),
                     new("llama3.1", false, false, true),
                     new("gemma3", false, true, false),
+                    new ("gemma3:27b-cloud", false, true, false),
                     new("mistral:latest", false, false, false),
                     new("gemma4:31b-cloud", true, true, true),
                     new("gpt-oss:20b-cloud", true, false, false),
@@ -77,14 +78,18 @@ class Program
                     new("gemma4:e4b", false, true, true),
                     new("nemotron-3-nano:30b-cloud", true, false, true),
                     new("rnj-1", false, false, true),
-                    new("rnj-1:8b-cloud", false, false, true)
+                    new("rnj-1:8b-cloud", false, false, true),
                     //new ("qwen3-coder-next:cloud", false, false, true)
+                    new ("devstral-small-2:24b-cloud", false, true, true),
+                    //new ("devstral-2:123b-cloud", false, false, true),
+                    //new ("minimax-m2.1:cloud", true, false, true)
                 ],
-                searxngAddress = "http://localhost:1852/"
+                SearxngAddress = config["searxngBaseUrl"] ?? "http://host.docker.internal:1852",
+                ExecServerBaseUrl = config["execServerBaseUrl"] ?? "http://host.docker.internal:3000",
             })
             .AddSingleton(
                 new Db(
-                    $"Host={config["db:host"] ?? "localhost"};" +
+                    $"Host={config["db:host"] ?? "host.docker.internal"};" +
                     $"Port={config["db:port"] ?? "5432"};" +
                     $"Database={config["db:db"] ?? "botdb"};" +
                     $"Username={config["db:user"] ?? "bot"};" +
@@ -99,7 +104,7 @@ class Program
             {
                 var client = new HttpClient
                 {
-                    BaseAddress = new Uri(config["ollamaBaseUrl"] ?? "http://localhost:11434"),
+                    BaseAddress = new Uri(config["ollamaBaseUrl"] ?? "http://host.docker.internal:11434"),
                     Timeout = TimeSpan.FromMinutes(5)
                 };
                 client.DefaultRequestHeaders.Add("User-Agent", $"discordbotai/1.0 ({config["mail"] ?? "null"})");
@@ -118,6 +123,7 @@ class Program
         _services = services.BuildServiceProvider();
         
         _commandHandler = new CommandHandler(_client, _commands, config["prefix"] ?? "!", _services);
+        _client.MessageReceived += MessageListener.ProcessMessageAsync;
 
         await _commandHandler.InstallCommandsAsync();
         

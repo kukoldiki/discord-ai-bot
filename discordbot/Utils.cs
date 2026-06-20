@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Text;
 using System.Text.RegularExpressions;
 using Discord;
 using Discord.WebSocket;
@@ -78,5 +79,61 @@ public class Utils
             messages
         });
         return (await response.Content.ReadFromJsonAsync<ChatApiResponse>()).Message.Content;
+    }
+
+    public static async Task<string> CompactDialog(List<ChatMessage> history, HttpClient _ollamaClient)
+    {
+        var messages = new List<object> {
+            new
+            {
+                role = "system",
+                content = "You are a STRICT INFORMATION EXTRACTOR.\n\nYou are NOT allowed to write natural language paragraphs.\n\nOUTPUT MUST BE VALID JSON ONLY.\n\nRules:\n- no markdown\n- no prose\n- no explanations\n- no formatting text like articles\n- no stylistic language\n- no adjectives unless present in source\n- no conclusions\n\nYou only extract atomic data.\n\nIf something is not explicitly stated → omit it.\n\n---\n\nOUTPUT SCHEMA:\n\n{\n  \"summary\": [\"...\"],\n  \"intents\": [\"...\"],\n  \"facts\": [\"...\"],\n  \"state\": [\"...\"],\n  \"tools\": [\"...\"],\n  \"errors\": [\"...\"],\n  \"tasks\": [\"...\"]\n}\n\n---\n\nSTYLE RULES:\n- each item = atomic fact\n- max 10 words per item\n- prefer keywords\n- preserve technical tokens exactly"
+            },
+            new
+            {
+                role = "user",
+                content = BuildCompactInput(history),
+            }
+        };
+        var response = await _ollamaClient.PostAsJsonAsync("/api/chat",
+            new {
+                model = "qwen3:8b",
+                think = true,
+                stream = false,
+                messages
+            });
+        return (await response.Content.ReadFromJsonAsync<ChatApiResponse>()).Message.Content;
+    }
+    public static string BuildCompactInput(List<ChatMessage> messages)
+    {
+        var sb = new StringBuilder();
+
+        foreach (var msg in messages)
+        {
+            if (!string.IsNullOrEmpty(msg.Role))
+                sb.AppendLine($"[{msg.Role.ToUpper()}]");
+
+            if (!string.IsNullOrEmpty(msg.Content))
+                sb.AppendLine(msg.Content);
+
+            if (msg.ToolCalls != null && msg.ToolCalls.Count > 0)
+            {
+                sb.AppendLine("[TOOL CALLS]");
+                foreach (var call in msg.ToolCalls)
+                {
+                    sb.AppendLine($"name: {call.Function.Name}");
+                    sb.AppendLine($"args: {call.Function.Arguments}");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(msg.ToolName))
+            {
+                sb.AppendLine($"[TOOL USED] {msg.ToolName}");
+            }
+
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
     }
 }

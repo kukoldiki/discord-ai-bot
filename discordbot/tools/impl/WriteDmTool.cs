@@ -14,7 +14,8 @@ public class WriteDmTool : ITool
             Description = "Send a message to a Discord dms. " +
                           "Use this only when the user explicitly asks to send a message " +
                           "to another user or when a task requires posting information " +
-                          "to a specific Discord user.",
+                          "to a specific Discord user." +
+                          "Dont use this for spam!",
             Parameters = new()
             {
                 Properties = new()
@@ -41,6 +42,7 @@ public class WriteDmTool : ITool
 
     public async Task<string> ExecuteAsync(ToolFunction func, SocketCommandContext ctx)
     {
+        // return "Tool disabled because you're spamming";
         try
         {
             if (!func.Arguments.TryGetValue("user_id", out var userIdObj))
@@ -63,7 +65,7 @@ public class WriteDmTool : ITool
             var content = contentObj.ToString();
             if (content.Length > Utils.MaxMessageLength)
                 content = content.Substring(0, Utils.MaxMessageLength);
-            await user.SendMessageAsync(content);
+            await user.SendMessageAsync($"{content}\n\nMesssage sent by {ctx.User.Mention}");
             return "Successful!";
         }
         catch (Exception e)

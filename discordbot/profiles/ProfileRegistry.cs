@@ -17,7 +17,7 @@ public class ProfileRegistry
         {
             Name = "coder",
             SystemPrompt = "Ты опытный разработчик. Пиши чистый код.",
-            AllowedTools = new() { "execute", "run_python", "math", "http_get", "search_web", "save_memory", "get_memory" }
+            AllowedTools = new() { "execute", "run_python", "math", "http_get", "search_web", "save_memory", "get_memory", "send_text_file" }
         });
 
         Register(new AiProfile

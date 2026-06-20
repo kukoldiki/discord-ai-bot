@@ -23,7 +23,7 @@ public class ReadMessagesTool : ITool
                     },
                     ["message_count"] = new()
                     {
-                        Type = "int",
+                        Type = "integer",
                         Description = "Message count to fetch, max is 99"
                     }
                 },

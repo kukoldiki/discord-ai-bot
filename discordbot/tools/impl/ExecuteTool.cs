@@ -8,10 +8,12 @@ public class ExecuteTool : ITool
 {
     
     private readonly HttpClient _ollamaClient;
+    private readonly CommandConfig _config;
 
-    public ExecuteTool(HttpClient httpClient)
+    public ExecuteTool(HttpClient httpClient, CommandConfig config)
     {
         _ollamaClient = httpClient;
+        _config = config;
     }
     public ToolRequest Definition => new()
     {
@@ -41,7 +43,7 @@ public class ExecuteTool : ITool
         {
             var execQuery = func.Arguments.First().Value?.ToString();
             Log.Info("AI executing " + execQuery);
-            var execResponse = await _ollamaClient.PostAsJsonAsync("http://localhost:3000/run", new
+            var execResponse = await _ollamaClient.PostAsJsonAsync($"{_config.ExecServerBaseUrl}/run", new
             {
                 command = execQuery,
             });

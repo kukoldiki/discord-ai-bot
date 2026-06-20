@@ -55,7 +55,7 @@ public sealed class AudioService {
         }
         
         private Task OnStatsAsync(StatsEventArg arg) { 
-            Log.Info("{}", JsonSerializer.Serialize(arg));
+            //Log.Info("{}", JsonSerializer.Serialize(arg));
             return Task.CompletedTask;
         }
         

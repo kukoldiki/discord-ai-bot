@@ -7,10 +7,12 @@ namespace discordbot.tools.impl;
 public class RunPythonTool : ITool
 {
     private readonly HttpClient _ollamaClient;
+    private readonly CommandConfig _config;
 
-    public RunPythonTool(HttpClient httpClient)
+    public RunPythonTool(HttpClient httpClient, CommandConfig config)
     {
         _ollamaClient = httpClient;
+        _config = config;
     }
     public ToolRequest Definition => new()
     {
@@ -38,7 +40,7 @@ public class RunPythonTool : ITool
         try
         {
             var pythonCode = func.Arguments.First().Value?.ToString();
-            var execResponse = await _ollamaClient.PostAsJsonAsync("http://localhost:3000/python", new
+            var execResponse = await _ollamaClient.PostAsJsonAsync($"{_config.ExecServerBaseUrl}/python", new
             {
                 code = pythonCode,
             });

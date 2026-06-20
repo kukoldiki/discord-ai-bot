@@ -41,7 +41,7 @@ public class SearchWebTool : ITool
     public async Task<string> ExecuteAsync(ToolFunction func, SocketCommandContext ctx)
     {
         var q = func.Arguments.First().Value?.ToString();
-        var resp = await _ollamaClient.GetAsync($"{_config.searxngAddress}/search?q={q}&format=json&limit=3");
+        var resp = await _ollamaClient.GetAsync($"{_config.SearxngAddress}/search?q={q}&format=json&limit=3");
         var obj = await resp.Content.ReadFromJsonAsync<SearchResponse>();
         var sb = new StringBuilder();
         foreach (var res in obj.Results)

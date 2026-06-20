@@ -63,7 +63,7 @@ public class SaveMemoryTool : ITool
             var type = typeObj;
                     
             await _db.SaveMemory(userId, memory, await Utils.GetEmbedding(embedStr, _ollamaClient), type.ToString());
-
+  
             return "Successful!";
         }
         catch (Exception e)

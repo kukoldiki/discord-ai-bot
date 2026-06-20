@@ -62,55 +62,32 @@ public class GetMessageInfoTool : ITool
         {
             id = message.Id,
             content = message.Content,
-            cleanContent = message.CleanContent,
-            timestamp = message.Timestamp.UtcDateTime,
-            editedTimestamp = message.EditedTimestamp?.UtcDateTime,
             author = new
             {
                 id = message.Author.Id,
                 username = message.Author.Username,
                 globalName = message.Author.GlobalName,
-                discriminator = message.Author.Discriminator,
                 isBot = message.Author.IsBot,
-                isWebhook = message.Author.IsWebhook,
-                mention = message.Author.Mention,
                 avatarUrl = message.Author.GetAvatarUrl() ?? message.Author.GetDefaultAvatarUrl()
             },
             channel = new
             {
                 id = message.Channel.Id,
-                name = (message.Channel as ITextChannel)?.Name,
-                type = message.Channel.GetType().Name
+                name = (message.Channel as ITextChannel)?.Name
             },
             guild = (message.Channel as IGuildChannel) != null
                 ? new { id = ((IGuildChannel)message.Channel).GuildId }
                 : null,
-            mentions = new
-            {
-                users = message.MentionedUserIds.Select(x => new { id = x }),
-                roles = message.MentionedRoleIds,
-                channels = message.MentionedChannelIds
-            },
             attachments = message.Attachments.Select(a => new
             {
-                id = a.Id,
                 filename = a.Filename,
-                description = a.Description,
                 contentType = a.ContentType,
                 size = a.Size,
                 url = a.Url,
-                proxyUrl = a.ProxyUrl,
+                mediaUrl = a.ProxyUrl,
                 width = a.Width,
                 height = a.Height
             }),
-            embeds = message.Embeds.Select(e => new
-            {
-                title = e.Title,
-                description = e.Description,
-                url = e.Url,
-                type = e.Type.ToString()
-            }),
-            stickers = message.Stickers.Select(s => new { id = s.Id, name = s.Name }),
             reference = message.Reference != null
                 ? new
                 {
@@ -119,10 +96,8 @@ public class GetMessageInfoTool : ITool
                     guildId = message.Reference.GuildId
                 }
                 : null,
-            flags = message.Flags?.ToString(),
             source = new
             {
-                isTts = message.IsTTS,
                 source = message.Source.ToString()
             }
         };

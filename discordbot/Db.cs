@@ -53,7 +53,7 @@ public class Db
             @"UPDATE user_settings
       SET model = @Model,
           system_prompt = @SystemPrompt,
-      thinking = @Thinking
+      thinking = @Thinking,
       profile = @Profile
       WHERE user_id = @UserId",
             s
